@@ -5,7 +5,7 @@ GitHub.
 
 [Install it from the Chrome Web Store here](https://chromewebstore.google.com/detail/github-colab-link/gnnbgakeknoacickldeponldnpjfjefd).
 
-### Building
+### Build
 
 To build the archive for store submissions:
 
