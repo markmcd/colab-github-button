@@ -1,29 +1,60 @@
 const processedRows = new Set(); // Track processed file rows
 
-function addColabButtons() {
-  // console.log('Adding colab buttons, maybe');
+function addColabButtonToNotebookView() {
+  const buttonContainer = document.querySelector('.react-blob-header-edit-and-raw-actions');
+  if (!buttonContainer) {
+    return;
+  }
+
+  const existingButton = buttonContainer.querySelector('.colab-button');
+
+  const [_, owner, repo, , branch, ...filePathParts] = window.location.pathname.split('/');
+  const filePath = filePathParts.join('/');
+
+  if (!filePath.endsWith('.ipynb')) {
+    if (existingButton) {
+      existingButton.remove();
+    }
+    return;
+  }
+
+  // If we are here, it's a notebook file so remove the old button.
+  if (existingButton) {
+    existingButton.remove();
+  }
+
+  const colabUrl = `https://colab.research.google.com/no-dogfood/github/${owner}/${repo}/blob/${branch}/${filePath}`;
+
+  const button = document.createElement('button');
+  button.textContent = 'Open in Colab';
+  button.classList.add('btn', 'btn-sm', 'colab-button');
+
+  button.addEventListener('click', () => {
+    window.open(colabUrl, '_blank');
+  });
+
+  buttonContainer.appendChild(button);
+}
+
+function addColabButtonsToPullRequest() {
   const fileRows = document.querySelectorAll('.file-header[data-path$=".ipynb"]');
 
   if (fileRows.length == 0) {
-    // console.log('No files found, assuming we have navigated elsewhere.');
     processedRows.clear();
     return;
   }
 
   fileRows.forEach((row) => {
-    // Use Repo, PR and file path as unique ID.
     const rowId = window.location.href + '#' + row.getAttribute('data-path');
 
     if (processedRows.has(rowId)) {
-      // console.log('Skipping, already processed.', processedRows);
-      return; // Row already processed, skip
+      return;
     }
 
-    processedRows.add(rowId); // Mark row as processed
+    processedRows.add(rowId);
 
     if (row.querySelector('.colab-button')) {
-      // console.log('Already has a button, skipping');
-      return; // Prevent duplicate buttons from previous runs
+      return;
     }
 
     const filePath = row.getAttribute('data-path');
@@ -49,7 +80,6 @@ function addColabButtons() {
         });
 
         row.appendChild(button);
-        // console.log('BUTTON ADDED');
       })
       .catch((error) => {
         console.error('Error fetching pull request details:', error);
@@ -57,8 +87,27 @@ function addColabButtons() {
   });
 }
 
-// Run on page load and on DOM mutations (for dynamic content)
+function addColabButtons() {
+  if (window.location.pathname.includes('/blob/')) {
+    addColabButtonToNotebookView();
+  } else if (window.location.pathname.includes('/pull/')) {
+    addColabButtonsToPullRequest();
+  }
+}
+
+// Disconnect the observer while making changes, to prevent looping.
+const observerCallback = (mutationsList, observer) => {
+  observer.disconnect();
+  addColabButtons();
+  observer.observe(document.body, { childList: true, subtree: true });
+};
+
+const observer = new MutationObserver(observerCallback);
+
+// Run once on initial page load (for direct page loads).
 addColabButtons();
-const observer = new MutationObserver(addColabButtons);
+
+// Start observing the target node for configured mutations (for partial page
+// updates).
 observer.observe(document.body, { childList: true, subtree: true });
 
